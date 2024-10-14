@@ -1,20 +1,11 @@
 FROM python:3.9
 
-ARG SCRIPT
-ENV SCRIPT $SCRIPT
-
 WORKDIR /app
-
-COPY /requirements_dev.txt /app
-
-
-RUN cat requirements_dev.txt
+COPY deployment/requirements_dev.txt /app/requirements_dev.txt
 RUN pip install --no-cache-dir --upgrade -r /app/requirements_dev.txt
-RUN pip freeze > /var/log/requirements_installation.log
-RUN cat /var/log/requirements_installation.log
-COPY /src/. src/.
+
+COPY deployment/src/. /app/src/.
 
 WORKDIR /app/src/
 
-
-CMD ["sh", "-c", "uvicorn $SCRIPT --host 0.0.0.0 --port 80 --proxy-headers --forwarded-allow-ips '*'"]
+CMD ["sh", "-c", "uvicorn your_script:app --host 0.0.0.0 --port 80 --proxy-headers --forwarded-allow-ips '*'"]
