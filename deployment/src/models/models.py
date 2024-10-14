@@ -4,11 +4,6 @@ from datetime import datetime
 
 Base = declarative_base()
 
-class RoleModel(Base):
-    __tablename__ = "roles"
-
-    id = Column(String, primary_key=True, unique=True, index=True)
-    name = Column(String, unique=True)
 
 class UserModel(Base):
     __tablename__ = "users"
