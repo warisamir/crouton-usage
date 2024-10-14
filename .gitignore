@@ -50,6 +50,8 @@ ENV/
 env.bak/
 venv.bak/
 p38venv/
+v2pyd/
+v1pyd/
 
 # Databases
 *.db
@@ -57,3 +59,4 @@ db.sqlite3*
 
 # IDEs
 .idea
+
