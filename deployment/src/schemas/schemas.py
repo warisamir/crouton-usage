@@ -9,7 +9,6 @@ from typing import ForwardRef
 class UserUpdate(BaseModel):
   email: str
   password: str
-  role_id: str
   email_validated: bool = False
   active: bool = True
   temporary_password: bool = False
