@@ -1,10 +1,10 @@
 FROM python:3.9
 
 WORKDIR /app
-COPY deployment/requirements_dev.txt /app/requirements_dev.txt
+COPY /requirements_dev.txt /app/requirements_dev.txt
 RUN pip install --no-cache-dir --upgrade -r /app/requirements_dev.txt
 
-COPY deployment/src/. /app/src/.
+COPY /src/. /app/src/.
 
 WORKDIR /app/src/
 
