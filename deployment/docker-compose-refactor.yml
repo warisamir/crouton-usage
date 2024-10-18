@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./Dockerfiles/Dockerfile.refactor
+      args:
+      - SCRIPT=main:app
+    env_file:
+      - ./env/dev.env
+    volumes:
+      - ./db:/app/db/
+      - ./assets:/app/src/assets
+    restart: always
+    expose:
+      - 80
+    networks:
+      - swarmauricrudrouter
+      
+networks:
+  swarmauricrudrouter:
+    name: swarmauricrudrouter
