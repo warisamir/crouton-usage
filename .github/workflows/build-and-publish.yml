@@ -63,5 +63,5 @@ jobs:
         env:
           POETRY_PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
           POETRY_PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: poetry publish --build --username $POETRY_PYPI_USERNAME --password $POETRY_PYPI_API_TOKEN
+        run: poetry publish --build --username "$POETRY_PYPI_USERNAME" --password "$POETRY_PYPI_API_TOKEN"
 
