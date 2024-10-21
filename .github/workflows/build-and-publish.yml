@@ -48,8 +48,6 @@ jobs:
       - name: Run tests
         run: |
           cd pkg/swarmauri-api-crudrouter
-          ls > log.out
-          cat log.out
           poetry run pytest -v . --junitxml=results.xml
         continue-on-error: True
 
