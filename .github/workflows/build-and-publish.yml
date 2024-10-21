@@ -27,7 +27,9 @@ jobs:
         run: echo "${{ runner.tool_cache }}/poetry/$(poetry --version | awk '{print $3}')/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: poetry install
+        run: |
+          cd pkg
+          poetry install
 
       - name: Run tests
         run: poetry run pytest 
