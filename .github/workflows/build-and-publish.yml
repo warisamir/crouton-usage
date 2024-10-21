@@ -1,1 +1,43 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Configure Poetry to add to PATH
+        run: echo "${{ runner.tool_cache }}/poetry/$(poetry --version | awk '{print $3}')/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run tests
+        run: poetry run pytest 
+
+      - name: Build the package
+        run: poetry build
+
+      - name: Publish to PyPI
+        if: github.ref == 'refs/heads/master'
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+        run: poetry publish --build --username __token__ --password $POETRY_PYPI_TOKEN_PYPI
 
