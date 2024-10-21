@@ -58,10 +58,11 @@ jobs:
 
       - name: Publish to PyPI
         if: github.ref == 'refs/heads/master'
+        uses: pypa/gh-action-pypi-publish@v1.4.2
         env:
           POETRY_PYPI_USERNAME: ${{ secrets.POETRY_PYPI_USERNAME }}
           POETRY_PYPI_API_TOKEN: ${{ secrets.POETRY_PYPI_API_TOKEN }}
-        run: |
-          cd pkg/dist
-          poetry publish --build --username $POETRY_PYPI_USERNAME --password $POETRY_PYPI_API_TOKEN -vv
-
+        with:
+          user: ${{ secrets.POETRY_PYPI_USERNAME }}
+          password: ${{ secrets.POETRY_PYPI_API_TOKEN }}
+          packages_dir: pkg/dist
