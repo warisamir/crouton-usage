@@ -16,6 +16,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 fastapi = "*"
+databases = "*"
 #httpx = "*"
 
 [tool.poetry.dev-dependencies]
