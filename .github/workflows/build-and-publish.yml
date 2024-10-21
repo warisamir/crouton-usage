@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,10 +21,9 @@ jobs:
           python-version: '3.12'
 
       - name: Install Poetry
-        run: curl -sSL https://install.python-poetry.org | python3 -
-
-      - name: Configure Poetry to add to PATH
-        run: echo "${{ runner.tool_cache }}/poetry/$(poetry --version | awk '{print $3}')/bin" >> $GITHUB_PATH
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
