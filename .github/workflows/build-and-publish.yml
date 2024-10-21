@@ -62,6 +62,6 @@ jobs:
           POETRY_PYPI_USERNAME: ${{ secrets.POETRY_PYPI_USERNAME }}
           POETRY_PYPI_API_TOKEN: ${{ secrets.POETRY_PYPI_API_TOKEN }}
         run: |
-          cd pkg
+          cd pkg/dist
           poetry publish --build --username $POETRY_PYPI_USERNAME --password $POETRY_PYPI_API_TOKEN -vv
 
