@@ -46,8 +46,8 @@ jobs:
       
       - name: Run tests
         run: |
-          cd pkg/swarmauri-api-crudrouter
-          poetry run pytest -v . --junitxml=results.xml
+          cd pkg
+          poetry run pytest -v tests --junitxml=results.xml
         continue-on-error: True
 
       - name: Publish to PyPI
