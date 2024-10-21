@@ -32,7 +32,9 @@ jobs:
           poetry install
 
       - name: Run tests
-        run: poetry run pytest -v . --junitxml=results.xml
+        run: |
+        cd pkg/swarmauri-api-crudrouter
+        poetry run pytest -v . --junitxml=results.xml
 
       - name: Build the package
         run: poetry build
