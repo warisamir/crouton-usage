@@ -40,7 +40,6 @@ jobs:
         run: |
           cd pkg
           ls >> log.out 
-          ls swarmauri-api-crudrouter >> log.out
           cat log.out
           poetry build
 
