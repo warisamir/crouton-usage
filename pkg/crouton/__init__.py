@@ -15,5 +15,5 @@ __all__ = [
     "DatabasesCRUDRouter",
     "TortoiseCRUDRouter",
     "OrmarCRUDRouter",
-    "GinoCRUDRouter",
+#    "GinoCRUDRouter",
 ]
