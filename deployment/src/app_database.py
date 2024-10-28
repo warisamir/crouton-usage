@@ -63,14 +63,14 @@ schema_factory = schema_factory_patch
 
 
 
-class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
+class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
     def __init__(
         self,
-        schema: Type[SCHEMA],
-        db_model: Model,
-        db: "Session",
-        create_schema: Optional[Type[SCHEMA]] = None,
-        update_schema: Optional[Type[SCHEMA]] = None,
+        schema: Type[PYDANTIC_SCHEMA],
+        table: "Table",
+        database: "Database",
+        create_schema: Optional[Type[PYDANTIC_SCHEMA]] = None,
+        update_schema: Optional[Type[PYDANTIC_SCHEMA]] = None,
         prefix: Optional[str] = None,
         tags: Optional[List[str]] = None,
         paginate: Optional[int] = None,
@@ -83,19 +83,20 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         **kwargs: Any
     ) -> None:
         assert (
-            sqlalchemy_installed
-        ), "SQLAlchemy must be installed to use the SQLAlchemyCRUDRouter."
+            databases_installed
+        ), "Databases and SQLAlchemy must be installed to use the DatabasesCRUDRouter."
 
-        self.db_model = db_model
-        self.db_func = db
-        self._pk: str = db_model.__table__.primary_key.columns.keys()[0]
+        self.table = table
+        self.db = database
+        self._pk = database.primary_key.columns.values()[0].name
+        self._pk_col = self.table.c[self._pk]
         self._pk_type: type = get_pk_type(schema, self._pk)
 
         super().__init__(
             schema=schema,
             create_schema=create_schema,
             update_schema=update_schema,
-            prefix=prefix or db_model.__tablename__,
+            prefix=prefix or table.name,
             tags=tags,
             paginate=paginate,
             get_all_route=get_all_route,
@@ -108,94 +109,80 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         )
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route(
-            db: Session = Depends(self.db_func),
+        async def route(
             pagination: PAGINATION = self.pagination,
         ) -> List[Model]:
             skip, limit = pagination.get("skip"), pagination.get("limit")
 
-            db_models: List[Model] = (
-                db.query(self.db_model)
-                .order_by(getattr(self.db_model, self._pk))
-                .limit(limit)
-                .offset(skip)
-                .all()
-            )
-            return db_models
+            query = self.table.select().limit(limit).offset(skip)
+            return pydantify_record(await self.db.fetch_all(query))  # type: ignore
 
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            item_id: self._pk_type, db: Session = Depends(self.db_func)  # type: ignore
-        ) -> Model:
-            model: Model = db.query(self.db_model).get(item_id)
+        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+            query = self.table.select().where(self._pk_col == item_id)
+            model = await self.db.fetch_one(query)
 
             if model:
-                return model
+                return pydantify_record(model)  # type: ignore
             else:
-                raise NOT_FOUND from None
+                raise NOT_FOUND
 
         return route
 
     def _create(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            model: self.create_schema,  # type: ignore
-            db: Session = Depends(self.db_func),
+        async def route(
+            schema: self.create_schema,  # type: ignore
         ) -> Model:
+            query = self.table.insert()
+
             try:
-                db_model: Model = self.db_model(**model.dict())
-                db.add(db_model)
-                db.commit()
-                db.refresh(db_model)
-                return db_model
-            except IntegrityError:
-                db.rollback()
+                rid = await self.db.execute(query=query, values=schema.dict())
+                if type(rid) is not self._pk_type:
+                    rid = getattr(schema, self._pk, rid)
+
+                return await self._get_one()(rid)
+            except Exception:
                 raise HTTPException(422, "Key already exists") from None
 
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            item_id: self._pk_type,  # type: ignore
-            model: self.update_schema,  # type: ignore
-            db: Session = Depends(self.db_func),
+        async def route(
+            item_id: self._pk_type, schema: self.update_schema  # type: ignore
         ) -> Model:
+            query = self.table.update().where(self._pk_col == item_id)
+
             try:
-                db_model: Model = self._get_one()(item_id, db)
-
-                for key, value in model.dict(exclude={self._pk}).items():
-                    if hasattr(db_model, key):
-                        setattr(db_model, key, value)
-
-                db.commit()
-                db.refresh(db_model)
-
-                return db_model
-            except IntegrityError as e:
-                db.rollback()
-                self._raise(e)
+                await self.db.fetch_one(
+                    query=query, values=schema.dict(exclude={self._pk})
+                )
+                return await self._get_one()(item_id)
+            except Exception as e:
+                raise NOT_FOUND from e
 
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route(db: Session = Depends(self.db_func)) -> List[Model]:
-            db.query(self.db_model).delete()
-            db.commit()
+        async def route() -> List[Model]:
+            query = self.table.delete()
+            await self.db.execute(query=query)
 
-            return self._get_all()(db=db, pagination={"skip": 0, "limit": None})
+            return await self._get_all()(pagination={"skip": 0, "limit": None})
 
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            item_id: self._pk_type, db: Session = Depends(self.db_func)  # type: ignore
-        ) -> Model:
-            db_model: Model = self._get_one()(item_id, db)
-            db.delete(db_model)
-            db.commit()
+        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+            query = self.table.delete().where(self._pk_col == item_id)
 
-            return db_model
+            try:
+                row = await self._get_one()(item_id)
+                await self.db.execute(query=query)
+                return row
+            except Exception as e:
+                raise NOT_FOUND from e
 
         return route
 
@@ -223,12 +210,13 @@ def create_route_objects(components: List[str]) -> List:
 def create_routers(routes_to_create: List) -> List:
     routers = []
     for each in routes_to_create:
-        router = SQLAlchemyCRUDRouter(
+
+        router = DatabasesCRUDRouter(
             schema=each["schema"],
+            table=each["schema"],
+            database=each["db_model"],
             create_schema=each["create_schema"],
             update_schema=each["update_schema"],
-            db_model=each["db_model"],
-            db=get_db,
             prefix=each["prefix"],
             get_one_route=[Depends(get_api_key)],
             get_all_route=[Depends(get_api_key)],
@@ -237,6 +225,7 @@ def create_routers(routes_to_create: List) -> List:
             delete_one_route=[Depends(get_api_key)],
             delete_all_route=[Depends(get_api_key)],
         )
+
 
         routers.append(router)
     return routers

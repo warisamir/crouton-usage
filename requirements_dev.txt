@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+typing
+python-dotenv
+requests
+sqlalchemy
+fastapi-crudrouter
+typing_extensions
+python-multipart

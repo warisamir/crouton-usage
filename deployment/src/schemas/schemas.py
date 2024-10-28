@@ -20,3 +20,30 @@ class UserCreate(UserUpdate):
 class User(UserCreate):
     date_registered: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+
+class ItemModel(BaseModel):
+    id: str
+    name: str
+    barcode: str
+    available: bool = False
+    total_available: int
+
+
+class ItemCreate(BaseModel):
+    id: str
+    barcode: str
+    name: str
+    available: bool = False
+    total_available: int
+
+
+class ItemUpdate(BaseModel):
+    name: str
+    available: bool = False
+    total_available: int
+
+
+class Item(ItemCreate):
+    model_config = ConfigDict(from_attributes=True)

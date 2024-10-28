@@ -15,8 +15,14 @@ else:
    
     SQLALCHEMY_DATABASE_URL = "sqlite:////app/db/app.db"  
     print('Creating new db @', SQLALCHEMY_DATABASE_URL)
+
 db_directory = os.path.dirname(SQL_DB_FILENAME) if SQL_DB_FILENAME else "/app/db/"
-os.makedirs(db_directory, exist_ok=True) 
+
+print("DB DRECTORY#################")
+
+print(db_directory)
+
+os.makedirs(db_directory, exist_ok=True)
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}

@@ -62,13 +62,10 @@ get_pk_type = get_pk_type_patch
 schema_factory = schema_factory_patch
 
 
-
-class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
+class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
     def __init__(
         self,
         schema: Type[SCHEMA],
-        db_model: Model,
-        db: "Session",
         create_schema: Optional[Type[SCHEMA]] = None,
         update_schema: Optional[Type[SCHEMA]] = None,
         prefix: Optional[str] = None,
@@ -82,20 +79,11 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         delete_all_route: Union[bool, DEPENDENCIES] = True,
         **kwargs: Any
     ) -> None:
-        assert (
-            sqlalchemy_installed
-        ), "SQLAlchemy must be installed to use the SQLAlchemyCRUDRouter."
-
-        self.db_model = db_model
-        self.db_func = db
-        self._pk: str = db_model.__table__.primary_key.columns.keys()[0]
-        self._pk_type: type = get_pk_type(schema, self._pk)
-
         super().__init__(
             schema=schema,
             create_schema=create_schema,
             update_schema=update_schema,
-            prefix=prefix or db_model.__tablename__,
+            prefix=prefix,
             tags=tags,
             paginate=paginate,
             get_all_route=get_all_route,
@@ -107,98 +95,78 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             **kwargs
         )
 
-    def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route(
-            db: Session = Depends(self.db_func),
-            pagination: PAGINATION = self.pagination,
-        ) -> List[Model]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
+        self.models: List[SCHEMA] = []
+        self._id = 1
 
-            db_models: List[Model] = (
-                db.query(self.db_model)
-                .order_by(getattr(self.db_model, self._pk))
-                .limit(limit)
-                .offset(skip)
-                .all()
+    def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
+        def route(pagination: PAGINATION = self.pagination) -> List[SCHEMA]:
+            skip, limit = pagination.get("skip"), pagination.get("limit")
+            skip = cast(int, skip)
+
+            return (
+                self.models[skip:]
+                if limit is None
+                else self.models[skip : skip + limit]
             )
-            return db_models
 
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            item_id: self._pk_type, db: Session = Depends(self.db_func)  # type: ignore
-        ) -> Model:
-            model: Model = db.query(self.db_model).get(item_id)
+        def route(item_id: int) -> SCHEMA:
+            for model in self.models:
+                if model.id == item_id:  # type: ignore
+                    return model
 
-            if model:
-                return model
-            else:
-                raise NOT_FOUND from None
+            raise NOT_FOUND
 
         return route
 
     def _create(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            model: self.create_schema,  # type: ignore
-            db: Session = Depends(self.db_func),
-        ) -> Model:
-            try:
-                db_model: Model = self.db_model(**model.dict())
-                db.add(db_model)
-                db.commit()
-                db.refresh(db_model)
-                return db_model
-            except IntegrityError:
-                db.rollback()
-                raise HTTPException(422, "Key already exists") from None
+        def route(model: self.create_schema) -> SCHEMA:  # type: ignore
+            model_dict = model.dict()
+            model_dict["id"] = self._get_next_id()
+            ready_model = self.schema(**model_dict)
+            self.models.append(ready_model)
+            return ready_model
 
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            item_id: self._pk_type,  # type: ignore
-            model: self.update_schema,  # type: ignore
-            db: Session = Depends(self.db_func),
-        ) -> Model:
-            try:
-                db_model: Model = self._get_one()(item_id, db)
+        def route(item_id: int, model: self.update_schema) -> SCHEMA:  # type: ignore
+            for ind, model_ in enumerate(self.models):
+                if model_.id == item_id:  # type: ignore
+                    self.models[ind] = self.schema(
+                        **model.dict(), id=model_.id  # type: ignore
+                    )
+                    return self.models[ind]
 
-                for key, value in model.dict(exclude={self._pk}).items():
-                    if hasattr(db_model, key):
-                        setattr(db_model, key, value)
-
-                db.commit()
-                db.refresh(db_model)
-
-                return db_model
-            except IntegrityError as e:
-                db.rollback()
-                self._raise(e)
+            raise NOT_FOUND
 
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route(db: Session = Depends(self.db_func)) -> List[Model]:
-            db.query(self.db_model).delete()
-            db.commit()
-
-            return self._get_all()(db=db, pagination={"skip": 0, "limit": None})
+        def route() -> List[SCHEMA]:
+            self.models = []
+            return self.models
 
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(
-            item_id: self._pk_type, db: Session = Depends(self.db_func)  # type: ignore
-        ) -> Model:
-            db_model: Model = self._get_one()(item_id, db)
-            db.delete(db_model)
-            db.commit()
+        def route(item_id: int) -> SCHEMA:
+            for ind, model in enumerate(self.models):
+                if model.id == item_id:  # type: ignore
+                    del self.models[ind]
+                    return model
 
-            return db_model
+            raise NOT_FOUND
 
         return route
 
+    def _get_next_id(self) -> int:
+        id_ = self._id
+        self._id += 1
+
+        return id_
 
 
 def create_route_objects(components: List[str]) -> List:
@@ -207,13 +175,11 @@ def create_route_objects(components: List[str]) -> List:
         schema = schemas.__getattribute__(each)
         create_schema = schemas.__getattribute__(each + "Create")
         update_schema = schemas.__getattribute__(each + "Update")
-        db_model = models.__getattribute__(each + "Model")
 
         obj = {
             "schema": schema,
             "create_schema": create_schema,
             "update_schema": update_schema,
-            "db_model": db_model,
             "prefix": each.lower(), 
         }
 
@@ -223,20 +189,18 @@ def create_route_objects(components: List[str]) -> List:
 def create_routers(routes_to_create: List) -> List:
     routers = []
     for each in routes_to_create:
-        router = SQLAlchemyCRUDRouter(
-            schema=each["schema"],
-            create_schema=each["create_schema"],
-            update_schema=each["update_schema"],
-            db_model=each["db_model"],
-            db=get_db,
-            prefix=each["prefix"],
-            get_one_route=[Depends(get_api_key)],
-            get_all_route=[Depends(get_api_key)],
-            create_route=[Depends(get_api_key)],
-            update_route=[Depends(get_api_key)],
-            delete_one_route=[Depends(get_api_key)],
-            delete_all_route=[Depends(get_api_key)],
-        )
+        router = MemoryCRUDRouter(
+                schema=each["schema"],
+                create_schema=each["create_schema"],
+                update_schema=each["update_schema"],
+                prefix=each["prefix"],
+                get_one_route=[Depends(get_api_key)],
+                get_all_route=[Depends(get_api_key)],
+                create_route=[Depends(get_api_key)],
+                update_route=[Depends(get_api_key)],
+                delete_one_route=[Depends(get_api_key)],
+                delete_all_route=[Depends(get_api_key)],
+            )
 
         routers.append(router)
     return routers
