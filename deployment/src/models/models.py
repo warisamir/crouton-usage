@@ -22,7 +22,7 @@ class UserModel(Base):
 class ItemModel(Base):
     __tablename__ = "items"
 
-    id = Column(String, primary_key=True, unique=True, index=True)
+    id = Column(Integer, primary_key=True, unique=True, index=True)
     name = Column(String, unique=True)
     barcode = Column(String, unique=True)
     available = Column(Boolean, default=False)

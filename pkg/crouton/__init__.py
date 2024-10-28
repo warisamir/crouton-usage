@@ -1,6 +1,6 @@
 from .core import (
     DatabasesCRUDRouter,
-    GinoCRUDRouter,
+    # GinoCRUDRouter,
     MemoryCRUDRouter,
     OrmarCRUDRouter,
     SQLAlchemyCRUDRouter,
