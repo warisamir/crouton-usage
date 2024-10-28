@@ -11,6 +11,7 @@ from typing import List, Type, TypeVar, Any, cast
 from pydantic import create_model
 
 
+
 try:
     from sqlalchemy.sql.schema import Table
     from databases.core import Database
@@ -56,6 +57,7 @@ def schema_factory_patch(
 
 from fastapi_crudrouter.core._utils import get_pk_type, schema_factory
 from fastapi_crudrouter.core._types import PAGINATION, PYDANTIC_SCHEMA, DEPENDENCIES
+
 
 
 get_pk_type = get_pk_type_patch

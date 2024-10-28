@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import event
 import models
 import schemas
-from database import SessionLocal, engine
+from database import SessionLocal, engine, SQLALCHEMY_DATABASE_URL
 from depends import get_api_key
 from typing import List, Type, TypeVar, Any, cast
+import databases
 from pydantic import create_model
 
 
@@ -54,7 +55,7 @@ def schema_factory_patch(
     return create_model(__model_name=name, **fields)  
 
 
-from fastapi_crudrouter.core._utils import get_pk_type, schema_factory
+from fastapi_crudrouter.core._utils import get_pk_type, schema_factory, AttrDict
 from fastapi_crudrouter.core._types import PAGINATION, PYDANTIC_SCHEMA, DEPENDENCIES
 
 
@@ -62,13 +63,21 @@ get_pk_type = get_pk_type_patch
 schema_factory = schema_factory_patch
 
 
+def pydantify_record(
+    models: Union[Model, List[Model]]
+) -> Union[AttrDict, List[AttrDict]]:
+    if type(models) is list:
+        return [AttrDict(**dict(model)) for model in models]
+    else:
+        return AttrDict(**dict(models))  # type: ignore
+
 
 class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
     def __init__(
         self,
         schema: Type[PYDANTIC_SCHEMA],
-        table: "Table",
-        database: "Database",
+        table: Type[PYDANTIC_SCHEMA],
+        database: Type[PYDANTIC_SCHEMA],
         create_schema: Optional[Type[PYDANTIC_SCHEMA]] = None,
         update_schema: Optional[Type[PYDANTIC_SCHEMA]] = None,
         prefix: Optional[str] = None,
@@ -88,7 +97,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
 
         self.table = table
         self.db = database
-        self._pk = database.primary_key.columns.values()[0].name
+        self._pk = table.primary_key.columns.values()[0].name
         self._pk_col = self.table.c[self._pk]
         self._pk_type: type = get_pk_type(schema, self._pk)
 
@@ -194,13 +203,16 @@ def create_route_objects(components: List[str]) -> List:
         schema = schemas.__getattribute__(each)
         create_schema = schemas.__getattribute__(each + "Create")
         update_schema = schemas.__getattribute__(each + "Update")
-        db_model = models.__getattribute__(each + "Model")
+        database = databases.Database(SQLALCHEMY_DATABASE_URL)
+        table = models.__getattribute__(each + "Model").__table__
+
 
         obj = {
             "schema": schema,
             "create_schema": create_schema,
             "update_schema": update_schema,
-            "db_model": db_model,
+            "database": database,
+            "table": table,
             "prefix": each.lower(), 
         }
 
@@ -213,8 +225,8 @@ def create_routers(routes_to_create: List) -> List:
 
         router = DatabasesCRUDRouter(
             schema=each["schema"],
-            table=each["schema"],
-            database=each["db_model"],
+            table=each["table"],
+            database=each["database"],
             create_schema=each["create_schema"],
             update_schema=each["update_schema"],
             prefix=each["prefix"],
