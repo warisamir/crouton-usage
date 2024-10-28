@@ -55,6 +55,7 @@ v1pyd/
 pydantic2/
 
 # Databases
+*.sqlite3
 *.db
 db.sqlite3*
 
