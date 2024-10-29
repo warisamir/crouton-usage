@@ -1,7 +1,7 @@
 from . import _utils
 from ._base import NOT_FOUND, CRUDGenerator
 from .databases import DatabasesCRUDRouter
-from .gino_starlette import GinoCRUDRouter
+#from .gino_starlette import GinoCRUDRouter
 from .mem import MemoryCRUDRouter
 from .ormar import OrmarCRUDRouter
 from .sqlalchemy import SQLAlchemyCRUDRouter
@@ -16,5 +16,5 @@ __all__ = [
     "DatabasesCRUDRouter",
     "TortoiseCRUDRouter",
     "OrmarCRUDRouter",
-    "GinoCRUDRouter",
+#    "GinoCRUDRouter",
 ]

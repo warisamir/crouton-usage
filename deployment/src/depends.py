@@ -13,6 +13,9 @@ if API_KEY_NAME is None:
 
 # API_KEY_NAME = os.getenv("DEPENDS_API_KEY_NAME")
 API_KEY_VALUE = os.getenv("DEPENDS_API_KEY_VALUE")
+
+print(API_KEY_VALUE)
+
 api_key_query = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 
 

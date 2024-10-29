@@ -1,20 +1,15 @@
 from fastapi_crudrouter.core._base import *
 from fastapi_crudrouter.core.sqlalchemy import *
-from fastapi_crudrouter.core.mem import *
-from fastapi_crudrouter.core.databases import *
-
-
-from pkg.crouton.core import SQLAlchemyCRUDRouter
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import event
+from pkg.crouton.core import MemoryCRUDRouter
 from deployment.src.models import models
 from deployment.src.schemas import schemas
 from deployment.src.database import SessionLocal, engine
 from deployment.src.depends import get_api_key
 from typing import List, Type, TypeVar, Any, cast
 from pydantic import create_model
-
 
 
 try:
@@ -64,10 +59,8 @@ from fastapi_crudrouter.core._utils import get_pk_type, schema_factory
 from fastapi_crudrouter.core._types import PAGINATION, PYDANTIC_SCHEMA, DEPENDENCIES
 
 
-
 get_pk_type = get_pk_type_patch
 schema_factory = schema_factory_patch
-
 
 
 def create_route_objects(components: List[str]) -> List:
@@ -76,13 +69,11 @@ def create_route_objects(components: List[str]) -> List:
         schema = schemas.__getattribute__(each)
         create_schema = schemas.__getattribute__(each + "Create")
         update_schema = schemas.__getattribute__(each + "Update")
-        db_model = models.__getattribute__(each + "Model")
 
         obj = {
             "schema": schema,
             "create_schema": create_schema,
             "update_schema": update_schema,
-            "db_model": db_model,
             "prefix": each.lower(), 
         }
 
@@ -92,20 +83,18 @@ def create_route_objects(components: List[str]) -> List:
 def create_routers(routes_to_create: List) -> List:
     routers = []
     for each in routes_to_create:
-        router = SQLAlchemyCRUDRouter(
-            schema=each["schema"],
-            create_schema=each["create_schema"],
-            update_schema=each["update_schema"],
-            db_model=each["db_model"],
-            db=get_db,
-            prefix=each["prefix"],
-            get_one_route=[Depends(get_api_key)],
-            get_all_route=[Depends(get_api_key)],
-            create_route=[Depends(get_api_key)],
-            update_route=[Depends(get_api_key)],
-            delete_one_route=[Depends(get_api_key)],
-            delete_all_route=[Depends(get_api_key)],
-        )
+        router = MemoryCRUDRouter(
+                schema=each["schema"],
+                create_schema=each["create_schema"],
+                update_schema=each["update_schema"],
+                prefix=each["prefix"],
+                get_one_route=[Depends(get_api_key)],
+                get_all_route=[Depends(get_api_key)],
+                create_route=[Depends(get_api_key)],
+                update_route=[Depends(get_api_key)],
+                delete_one_route=[Depends(get_api_key)],
+                delete_all_route=[Depends(get_api_key)],
+            )
 
         routers.append(router)
     return routers
