@@ -1,2 +1,2 @@
 def placeholder():
-	pass
+	print('test')
