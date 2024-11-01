@@ -1,4 +1,5 @@
 import requests as r
+from .UUID import UUIDGenerator
 
 class AsyncCroutonClient:
     def __init__(self, API_ROOT, ACCESS_STRING):
@@ -25,7 +26,8 @@ class AsyncCroutonClient:
 
 
     async def post(self, resource: str, data_obj: dict):
-        data_obj.update({'id': UUIDGenerator().create()})
+    	if 'id' not in data_obj:
+        	data_obj.update({'id': UUIDGenerator().create()})
         res = r.post(self.API_ROOT+resource+self.ACCESS_STRING, 
                 json=data_obj)
         if res.status_code == 200:

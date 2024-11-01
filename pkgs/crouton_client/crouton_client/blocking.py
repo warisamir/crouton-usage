@@ -1,7 +1,5 @@
-from loadenv import *
-from .UUID import UUIDGenerator
-
 import requests as r
+from .UUID import UUIDGenerator
 
 class CroutonClient:
     def __init__(self, API_ROOT, ACCESS_STRING):
