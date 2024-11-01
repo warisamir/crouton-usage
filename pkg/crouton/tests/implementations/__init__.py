@@ -25,7 +25,6 @@ from .tortoise_ import tortoise_implementation
 implementations = [
     (memory_implementation, ""),
     (ormar_implementation, ""),
-    (gino_implementation, ""),
 ]
 
 implementations.extend([(sqlalchemy_implementation, dsn) for dsn in DSN_LIST])
