@@ -24,7 +24,7 @@ class AsyncCroutonClient:
                 raise ValueError
 
 
-    def post(self, resource: str, data_obj: dict):
+    async def post(self, resource: str, data_obj: dict):
         data_obj.update({'id': UUIDGenerator().create()})
         res = r.post(self.API_ROOT+resource+self.ACCESS_STRING, 
                 json=data_obj)
@@ -36,7 +36,7 @@ class AsyncCroutonClient:
             raise ValueError
 
     
-    def put(self, resource: str, data_obj: dict, item_id: str = None):
+    async def put(self, resource: str, data_obj: dict, item_id: str = None):
         if item_id:
             res = r.put(self.API_ROOT+resource+'/'+item_id+self.ACCESS_STRING, 
                     json=data_obj)
@@ -47,7 +47,7 @@ class AsyncCroutonClient:
                 print(res.json())
                 raise ValueError
 
-    def delete(self, resource: str, item_id: str = None):
+    async def delete(self, resource: str, item_id: str = None):
         if item_id:
             res = r.delete(self.API_ROOT+resource+'/'+item_id+self.ACCESS_STRING)
         else:
