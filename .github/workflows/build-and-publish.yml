@@ -11,6 +11,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg-dir: [pkg/crouton, pkg/crouton-client]  # Specify the directories for each package
+
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
@@ -27,34 +31,34 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd pkg
+          cd ${{ matrix.pkg-dir }}
           poetry install --no-cache -vv
 
       - name: Lint with flake8
         run: |
-          cd pkg
+          cd ${{ matrix.pkg-dir }}
           poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Build the package
         run: |
-          cd pkg
+          cd ${{ matrix.pkg-dir }}
           poetry build
 
       - name: Install built package
         run: |
-          LATEST_WHL=$(ls pkg/dist/*.whl | sort -V | tail -n 1)
+          LATEST_WHL=$(ls ${{ matrix.pkg-dir }}/dist/*.whl | sort -V | tail -n 1)
           python -m pip install "$LATEST_WHL" --no-cache-dir
-          
+
       - name: Get pip freeze
         run: |
           pip freeze
-      
+
       - name: Run tests
         run: |
-          cd pkg
-        # poetry run pytest -v tests --junitxml=results.xml
-        continue-on-error: True
+          cd ${{ matrix.pkg-dir }}
+          # poetry run pytest -v tests --junitxml=results.xml
+        continue-on-error: true
 
       - name: Publish to PyPI
         if: github.ref == 'refs/heads/master'
@@ -65,4 +69,4 @@ jobs:
         with:
           user: ${{ secrets.POETRY_PYPI_USERNAME }}
           password: ${{ secrets.POETRY_PYPI_API_TOKEN }}
-          packages_dir: pkg/dist
+          packages_dir: ${{ matrix.pkg-dir }}/dist
