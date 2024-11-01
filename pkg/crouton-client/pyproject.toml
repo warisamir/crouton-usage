@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "crouton"
-version = "0.0.2"
-description = "A repository to enable API CRUD Routing"
+name = "crouton-client"
+version = "0.0.3"
+description = "A client for Swarmauri's crouton."
 authors = ["Jacob Stewart <jacob@swarmauri.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/swarmauri/swarmauri-api-crudrouter"
+repository = "https://github.com/swarmauri/swarmauri-crouton"
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
