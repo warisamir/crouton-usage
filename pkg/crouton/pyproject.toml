@@ -5,7 +5,7 @@ description = "A repository to enable API CRUD Routing"
 authors = ["Jacob Stewart <jacob@swarmauri.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/swarmauri/swarmauri-crouton"
+repository = "https://github.com/swarmauri/crouton"
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
