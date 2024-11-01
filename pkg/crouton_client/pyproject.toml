@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "crouton-client"
+name = "crouton_client"
 version = "0.0.3.dev2"
 description = "A client for Swarmauri's crouton."
 authors = ["Jacob Stewart <jacob@swarmauri.com>"]
