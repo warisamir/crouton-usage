@@ -1,6 +1,5 @@
 from .core import (
     DatabasesCRUDRouter,
-    # GinoCRUDRouter,
     MemoryCRUDRouter,
     OrmarCRUDRouter,
     SQLAlchemyCRUDRouter,
@@ -15,5 +14,4 @@ __all__ = [
     "DatabasesCRUDRouter",
     "TortoiseCRUDRouter",
     "OrmarCRUDRouter",
-#    "GinoCRUDRouter",
 ]

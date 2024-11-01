@@ -5,7 +5,6 @@ import pytest
 from fastapi import APIRouter, FastAPI
 
 from fastapi_crudrouter import (
-    GinoCRUDRouter,
     MemoryCRUDRouter,
     OrmarCRUDRouter,
     SQLAlchemyCRUDRouter,
@@ -19,11 +18,9 @@ from tests import Potato
 
 @pytest.fixture(
     params=[
-        GinoCRUDRouter,
         SQLAlchemyCRUDRouter,
         MemoryCRUDRouter,
         OrmarCRUDRouter,
-        GinoCRUDRouter,
         DatabasesCRUDRouter,
     ]
 )
