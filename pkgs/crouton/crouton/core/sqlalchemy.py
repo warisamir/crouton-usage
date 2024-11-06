@@ -1,6 +1,8 @@
-from typing import Any, Callable, List, Type, Generator, Optional, Union
+from typing import Any, Callable, List, Type, Generator, Optional, Union, Dict
 
 from fastapi import Depends, HTTPException
+import logging
+import json
 
 from . import CRUDGenerator, NOT_FOUND, _utils
 from ._types import DEPENDENCIES, PAGINATION, PYDANTIC_SCHEMA as SCHEMA
@@ -20,6 +22,8 @@ else:
 
 CALLABLE = Callable[..., Model]
 CALLABLE_LIST = Callable[..., List[Model]]
+
+logger = logging.getLogger('uvicorn.error')
 
 
 class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
@@ -66,20 +70,49 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             **kwargs
         )
 
+    def get_filter_by(self, query: dict) -> dict:
+
+        # The Fields in the Schema
+        accepted_fields = self.schema.__dict__["model_fields"].keys()
+
+        # Check if the values passed match those in the schema
+        for key in query.keys():
+            if key not in accepted_fields:
+                raise HTTPException(400, "Invalid Query")
+            
+        return query
+
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         def route(
             db: Session = Depends(self.db_func),
             pagination: PAGINATION = self.pagination,
+            # query: Optional[Dict[str, Any]] = None,
+            **kwargs
         ) -> List[Model]:
+            
             skip, limit = pagination.get("skip"), pagination.get("limit")
 
-            db_models: List[Model] = (
-                db.query(self.db_model)
-                .order_by(getattr(self.db_model, self._pk))
-                .limit(limit)
-                .offset(skip)
-                .all()
-            )
+            if kwargs:
+                # Pass the given query to get checked
+                new_query = self.get_filter_by(eval(kwargs['kwargs']))
+
+                db_models: List[Model] = (
+                    db.query(self.db_model)
+                    .filter_by(**new_query)
+                    .limit(limit)
+                    .offset(skip)
+                    .all()
+                )
+
+            else:
+                db_models: List[Model] = (
+                    db.query(self.db_model)
+                    .order_by(getattr(self.db_model, self._pk))
+                    .limit(limit)
+                    .offset(skip)
+                    .all()
+                )
+
             return db_models
 
         return route
