@@ -7,32 +7,46 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AsyncCroutonClient:
-    def __init__(self, API_ROOT, ACCESS_STRING):
+    def __init__(self, API_ROOT, ACCESS_STRING = None):
         self.API_ROOT = API_ROOT
         self.ACCESS_STRING = ACCESS_STRING
             
-    async def get(self, resource: str, item_id: str = None, filters: dict = None):
+    async def get(self, resource: str, item_id: str = None, filter_key: str = None, filter_value: str = None):
         url = self.API_ROOT + resource
-        
-        # Start with the access string if necessary
-        query_params = {}
-        
-        if filters:
-            query_params.update(filters)  # Add the filters to the query parameters
 
-        # Always add the access token at the end of the query string
-        query_params['access_token'] = self.ACCESS_STRING.strip("?")  # Remove any extra '?' if included in ACCESS_STRING
-
-        # Construct the full query string from the dictionary
-        query_string = "&".join([f"{key}={value}" for key, value in query_params.items()])
-        
         # Add the item_id if provided (for specific resource requests)
         if item_id:
             url += f'/{item_id}'
+            
+            # If item_id is present, just add the access string
+            if self.ACCESS_STRING:
+                url += f"/<token={self.ACCESS_STRING.strip('?')}>"
+            else:
+                pass
+        else:
+            # If item_id is not present, add the filters and then the access string
+            query_params = {}
 
-        # Final URL with query parameters
-        url += "?" + query_string if query_string else ""
-        
+            if filter_key and filter_value:
+                query_params[filter_key] = filter_value  
+
+            # Construct the query string from the dictionary (filters only)
+            query_string = "&".join([f"{key}={value}" for key, value in query_params.items()])
+
+            # Append the access string with a slash if it exists
+            if self.ACCESS_STRING:
+                if query_string:
+                    query_string += f"/<token={self.ACCESS_STRING.strip('?')}>"
+                else:
+                    query_string = f"/<token={self.ACCESS_STRING.strip('?')}>"
+            else:
+                # If no access token, leave the query string as is (just the filters)
+                pass
+
+            # Add the query string to the URL if it's not empty
+            if query_string:
+                url += "?" + query_string
+
         # Perform the GET request
         res = r.get(url)
         if res.status_code == 200:
@@ -44,7 +58,17 @@ class AsyncCroutonClient:
     async def post(self, resource: str, data_obj: dict):
         if 'id' not in data_obj:
             data_obj.update({'id': UUIDGenerator().create()})
-        res = r.post(self.API_ROOT + resource + self.ACCESS_STRING, json=data_obj)
+        
+        url = self.API_ROOT + resource
+
+        # Add the access string if it's present
+        if self.ACCESS_STRING:
+            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
+        else:
+            pass
+
+        res = r.post(url, json=data_obj)
+
         if res.status_code == 200:
             return res.model_dump_json()
         else:
@@ -52,20 +76,39 @@ class AsyncCroutonClient:
             raise ValueError
 
     async def put(self, resource: str, data_obj: dict, item_id: str = None):
+        url = self.API_ROOT + resource
+
         if item_id:
-            res = r.put(self.API_ROOT + resource + '/' + item_id + self.ACCESS_STRING, json=data_obj)
-            if res.status_code == 200:
-                return res.model_dump_json()
-            else:
-                logger.error(f"PUT request failed with status {res.status_code}: {res.model_dump_json()}")
-                raise ValueError
+            url += f'/{item_id}'
+        
+        # Append the access string if it's present
+        if self.ACCESS_STRING:
+            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
+        else:
+            pass
+        
+        # Perform the PUT request with the constructed URL
+        res = r.put(url, json=data_obj)
+
+        if res.status_code == 200:
+            return res.model_dump_json()
+        else:
+            logger.error(f"PUT request failed with status {res.status_code}: {res.model_dump_json()}")
+            raise ValueError
 
     async def delete(self, resource: str, item_id: str = None):
+        url = self.API_ROOT + resource
+            
         if item_id:
-            res = r.delete(self.API_ROOT + resource + '/' + item_id + self.ACCESS_STRING)
-        else:
-            res = r.delete(self.API_ROOT + resource + '/' + item_id + self.ACCESS_STRING)
-
+            url += f'/{item_id}'
+        # Append the access string if it's present
+        if self.ACCESS_STRING:
+            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
+        
+        # Perform the DELETE request with the constructed URL
+        res = r.delete(url)
+            
+        # Check if the request was successful
         if res.status_code == 200:
             return res.model_dump_json()
         else:
