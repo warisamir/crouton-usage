@@ -2,8 +2,6 @@ name: Build and Publish
 
 on:
   push:
-    branches:
-      - master
     tags:
       - 'v*'  # Trigger on tags that start with "v"
   pull_request:
