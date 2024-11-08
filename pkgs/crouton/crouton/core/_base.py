@@ -55,7 +55,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if get_all_route:
             self._add_api_route(
-                "/",
+                "",
                 self._get_all(),
                 methods=["GET"],
                 response_model=Optional[List[self.schema] | self.schema],  # type: ignore
