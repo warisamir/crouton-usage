@@ -12,7 +12,6 @@ class CroutonClient:
         self.ACCESS_STRING = ACCESS_STRING
 
 
-
     def api_get_call(self, resource: str, item_id: str = None, filter_key: str = None, filter_value: str = None):
         url = self.API_ROOT + resource
 

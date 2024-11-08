@@ -76,9 +76,9 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
 
         # Prepare dictionary by splitting the query
         new_query = {}
-        key_value = query.split('&')
+        key_value = query.split(':')
         for values in key_value:
-            key, value = values.split('=')[0], values.split('=')[1]
+            key, value = values.split('>')[0], values.split('>')[1]
 
             # Check if the values passed in query match those in the schema
             if key not in accepted_fields:
@@ -124,8 +124,8 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             
             skip, limit = pagination.get("skip"), pagination.get("limit")
 
+            if type(query) == str:
 
-            if query:
                 # Pass the given query to get checked
                 new_query = self.get_filter_by(query)
 
@@ -149,7 +149,6 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
 
 
             else:
-
                 db_models: List[Model] = (
                     db.query(self.db_model)
                     .order_by(getattr(self.db_model, self._pk))
@@ -180,7 +179,6 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         def route(
             model: self.create_schema,  # type: ignore
             db: Session = Depends(self.db_func),
-            query: Annotated[str, Query()] = None,
         ) -> Model:
 
 
