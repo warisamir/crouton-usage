@@ -1,8 +1,7 @@
-from typing import Any, Callable, List, Type, Generator, Optional, Union, Annotated, get_origin
+from typing import Any, Callable, List, Type, Generator, Optional, Union, Annotated
 
 from fastapi import Depends, HTTPException, Query
 import logging
-import json
 
 from . import CRUDGenerator, NOT_FOUND, _utils
 from ._types import DEPENDENCIES, PAGINATION, PYDANTIC_SCHEMA as SCHEMA
@@ -72,14 +71,14 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
 
     def get_filter_by(self, query: str) -> dict:
 
-        # The Fields in the Schema
-        accepted_fields = self.schema.__dict__["model_fields"].keys()
+        # The Fields in the Model
+        accepted_fields = self.db_model.__table__.columns
 
         # Prepare dictionary by splitting the query
         new_query = {}
-        key_value = query.split('&')
+        key_value = query.split(':')
         for values in key_value:
-            key, value = values.split('=')[0], values.split('=')[1]
+            key, value = values.split('>')[0], values.split('>')[1]
 
             # Check if the values passed in query match those in the schema
             if key not in accepted_fields:
@@ -107,11 +106,12 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
                     # create a key-value dictionary of the query
                     new_query[key] = parsed_value
 
+
                 # Handle excpetion when error occurs
                 except (ValueError, TypeError) as e:
                         raise HTTPException(
                             status_code=422, detail=f"Invalid value for {key}: {e}"
-                        )
+                       )
 
         return new_query
 
@@ -119,24 +119,34 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         def route(
             db: Session = Depends(self.db_func),
             pagination: PAGINATION = self.pagination,
-            query: Annotated[str, Query()] = None,
-        ) -> List[Model]:
+            query: str | None = Query(None),
+        ) -> List[Model] | Model:
             
             skip, limit = pagination.get("skip"), pagination.get("limit")
 
-            if query:
+            if type(query) == str:
 
                 # Pass the given query to get checked
                 new_query = self.get_filter_by(query)
 
                 # Find the data that has been filtered
-                db_models: List[Model] = (
+                
+                db_models: Model = (
                     db.query(self.db_model)
                     .filter_by(**new_query)
                     .limit(limit)
                     .offset(skip)
-                    .all()
+                    .first()
                 )
+
+                logger.info(type(db_models))
+
+                if db_models:
+                    return db_models
+                else:
+                    raise NOT_FOUND from None
+                             
+
 
             else:
                 db_models: List[Model] = (
@@ -147,9 +157,10 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
                     .all()
                 )
 
-            return db_models
+                return db_models
 
         return route
+
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
         def route(
@@ -169,6 +180,8 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             model: self.create_schema,  # type: ignore
             db: Session = Depends(self.db_func),
         ) -> Model:
+
+
             try:
                 db_model: Model = self.db_model(**model.dict())
                 db.add(db_model)

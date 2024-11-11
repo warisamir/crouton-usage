@@ -46,14 +46,15 @@ class CroutonClient:
             
             # Add the query string to the URL if it's not empty
             if query_string:
-                url += "?" + query_string
+                url += "/?" + query_string
+
 
         # Perform the GET request
         res = r.get(url)
         if res.status_code == 200:
-            return res.model_dump_json()
+            return res.json()
         else:
-            logger.error(f"GET request failed with status {res.status_code}: {res.model_dump_json()}")
+            # logger.error(f"GET request failed with status {res.status_code}: {res.json()}")
             raise ValueError(res.status_code)
 
 
@@ -72,9 +73,9 @@ class CroutonClient:
         res = r.post(url, json=data_obj)
 
         if res.status_code == 200:
-            return res.model_dump_json()
+            return res.json()
         else:
-            logger.error(f"POST request failed with status {res.status_code}: {res.model_dump_json()}")
+            logger.error(f"POST request failed with status {res.status_code}: {res.json()}")
             raise ValueError(res.status_code)
 
 
@@ -94,9 +95,9 @@ class CroutonClient:
         res = r.put(url, json=data_obj)
 
         if res.status_code == 200:
-            return res.model_dump_json()
+            return res.json()
         else:
-            logger.error(f"PUT request failed with status {res.status_code}: {res.model_dump_json()}")
+            logger.error(f"PUT request failed with status {res.status_code}: {res.json()}")
             raise ValueError(res.status_code)
 
     def api_delete_call(self, resource: str, item_id: str = None):
@@ -113,7 +114,7 @@ class CroutonClient:
             
         # Check if the request was successful
         if res.status_code == 200:
-            return res.model_dump_json()
+            return res.json()
         else:
-            logger.error(f"DELETE request failed with status {res.status_code}: {res.model_dump_json()}")
+            logger.error(f"DELETE request failed with status {res.status_code}: {res.json()}")
             raise ValueError(res.status_code)
