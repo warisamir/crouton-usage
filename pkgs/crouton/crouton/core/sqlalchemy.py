@@ -203,13 +203,16 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             try:
                 db_model: Model = self._get_one()(item_id, db)
 
-                for key, value in model.dict(exclude={self._pk}).items():
+                # Use exclude_unset=True to only update provided fields
+                update_data = model.dict(exclude={self._pk}, exclude_unset=True)
+                
+                for key, value in update_data.items():
                     if hasattr(db_model, key):
                         setattr(db_model, key, value)
-
+    
                 db.commit()
                 db.refresh(db_model)
-
+    
                 return db_model
             except IntegrityError as e:
                 db.rollback()
