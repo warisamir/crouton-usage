@@ -35,7 +35,7 @@ class CroutonClient:
 
         return url
 
-    def api_get_call(
+    def get(
         self, 
         resource: str, 
         item_id: Optional[str] = None, 
@@ -54,7 +54,7 @@ class CroutonClient:
             logger.error(f"GET request failed with status {res.status_code}: {res.text}")
             raise ValueError(f"GET request failed with status {res.status_code}: {res.text}")
 
-    def api_post_call(self, resource: str, data_obj: dict) -> dict:
+    def post(self, resource: str, data_obj: dict) -> dict:
         """
         Perform a POST request to create a resource.
         """
@@ -71,7 +71,7 @@ class CroutonClient:
             logger.error(f"POST request failed with status {res.status_code}: {res.text}")
             raise ValueError(f"POST request failed with status {res.status_code}: {res.text}")
 
-    def api_put_call(self, resource: str, data_obj: dict, item_id: str) -> dict:
+    def put(self, resource: str, data_obj: dict, item_id: str) -> dict:
         """
         Perform a PUT request to update a resource.
         """
@@ -85,7 +85,7 @@ class CroutonClient:
             logger.error(f"PUT request failed with status {res.status_code}: {res.text}")
             raise ValueError(f"PUT request failed with status {res.status_code}: {res.text}")
 
-    def api_delete_call(self, resource: str, item_id: Optional[str] = None) -> dict:
+    def delete(self, resource: str, item_id: Optional[str] = None) -> dict:
         """
         Perform a DELETE request to delete a resource.
         """

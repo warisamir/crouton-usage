@@ -35,18 +35,16 @@ class AsyncCroutonClient:
 
         return url
 
-    async def get(
+    async def aget(
         self, 
         resource: str, 
         item_id: Optional[str] = None, 
-        filter_key: Optional[str] = None, 
-        filter_value: Optional[str] = None
+        filters: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Perform an asynchronous GET request with optional filters and an item ID.
         """
-        query_params = {filter_key: filter_value} if filter_key and filter_value else None
-        url = await self._build_url(resource, item_id, query_params)
+        url = await self._build_url(resource, item_id, filters)
 
         logger.info(f"Performing GET request to {url}")
         async with aiohttp.ClientSession() as session:
@@ -58,7 +56,7 @@ class AsyncCroutonClient:
                     logger.error(f"GET request failed with status {res.status}: {error_content}")
                     raise ValueError(f"GET request failed with status {res.status}: {error_content}")
 
-    async def post(self, resource: str, data_obj: Dict[str, Any]) -> Dict[str, Any]:
+    async def apost(self, resource: str, data_obj: Dict[str, Any]) -> Dict[str, Any]:
         """
         Perform an asynchronous POST request to create a resource.
         """
@@ -77,7 +75,7 @@ class AsyncCroutonClient:
                     logger.error(f"POST request failed with status {res.status}: {error_content}")
                     raise ValueError(f"POST request failed with status {res.status}: {error_content}")
 
-    async def put(self, resource: str, data_obj: Dict[str, Any], item_id: Optional[str] = None) -> Dict[str, Any]:
+    async def aput(self, resource: str, data_obj: Dict[str, Any], item_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Perform an asynchronous PUT request to update a resource.
         """
@@ -93,7 +91,7 @@ class AsyncCroutonClient:
                     logger.error(f"PUT request failed with status {res.status}: {error_content}")
                     raise ValueError(f"PUT request failed with status {res.status}: {error_content}")
 
-    async def delete(self, resource: str, item_id: Optional[str] = None) -> Dict[str, Any]:
+    async def adelete(self, resource: str, item_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Perform an asynchronous DELETE request to delete a resource.
         """
