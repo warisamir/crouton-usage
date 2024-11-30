@@ -1,6 +1,7 @@
 import requests as r
 import logging
 from urllib.parse import urlencode
+from typing import Optional, Any, Dict
 from .UUID import UUIDGenerator
 
 # Configure logging
