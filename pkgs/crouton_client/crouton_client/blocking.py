@@ -13,7 +13,7 @@ class CroutonClient:
         self.API_ROOT = API_ROOT.rstrip('/')  # Ensure no trailing slash
         self.ACCESS_STRING = ACCESS_STRING
 
-    def _build_url(self, resource: str, item_id: Optional[str] = None, query_params: Optional[dict] = None) -> str:
+    def _build_url(self, resource: str, item_id: Optional[str] = None, query_params: Optional[Dict[str, Any]] = None) -> str:
         """
         Helper method to construct the URL with resource, item_id, and query parameters.
         """
@@ -39,14 +39,12 @@ class CroutonClient:
         self, 
         resource: str, 
         item_id: Optional[str] = None, 
-        filter_key: Optional[str] = None, 
-        filter_value: Optional[str] = None
+        filters: Optional[Dict[str, Any]] = None
     ) -> dict:
         """
         Perform a GET request with optional filters and an item ID.
         """
-        query_params = {filter_key: filter_value} if filter_key and filter_value else None
-        url = self._build_url(resource, item_id, query_params)
+        url = self._build_url(resource, item_id, filters)
 
         logger.info(f"Performing GET request to {url}")
         res = r.get(url)
