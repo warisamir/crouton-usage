@@ -91,7 +91,7 @@ class AsyncCroutonClient:
                     logger.error(f"PUT request failed with status {res.status}: {error_content}")
                     raise ValueError(f"PUT request failed with status {res.status}: {error_content}")
 
-    async def adel(self, resource: str, item_id: Optional[str] = None) -> Dict[str, Any]:
+    async def adelete(self, resource: str, item_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Perform an asynchronous DELETE request to delete a resource.
         """
