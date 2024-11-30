@@ -39,14 +39,12 @@ class AsyncCroutonClient:
         self, 
         resource: str, 
         item_id: Optional[str] = None, 
-        filter_key: Optional[str] = None, 
-        filter_value: Optional[str] = None
+        filters: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Perform an asynchronous GET request with optional filters and an item ID.
         """
-        query_params = {filter_key: filter_value} if filter_key and filter_value else None
-        url = await self._build_url(resource, item_id, query_params)
+        url = await self._build_url(resource, item_id, filters)
 
         logger.info(f"Performing GET request to {url}")
         async with aiohttp.ClientSession() as session:
