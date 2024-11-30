@@ -1,5 +1,7 @@
 import requests as r
 import logging
+from urllib.parse import urlencode
+from typing import Optional, Any, Dict
 from .UUID import UUIDGenerator
 
 # Configure logging
@@ -7,114 +9,94 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CroutonClient:
-    def __init__(self, API_ROOT, ACCESS_STRING = None):
-        self.API_ROOT = API_ROOT
+    def __init__(self, API_ROOT: str, ACCESS_STRING: Optional[str] = None):
+        self.API_ROOT = API_ROOT.rstrip('/')  # Ensure no trailing slash
         self.ACCESS_STRING = ACCESS_STRING
 
-
-    def api_get_call(self, resource: str, item_id: str = None, filter_key: str = None, filter_value: str = None):
-        url = self.API_ROOT + resource
-
-        # Add the item_id if provided (for specific resource requests)
+    def _build_url(self, resource: str, item_id: Optional[str] = None, query_params: Optional[dict] = None) -> str:
+        """
+        Helper method to construct the URL with resource, item_id, and query parameters.
+        """
+        url = f"{self.API_ROOT}/{resource.strip('/')}"
+        
+        # Add item ID if provided
         if item_id:
-            url += f'/{item_id}'
-            
-            # If item_id is present, just add the access string
-            if self.ACCESS_STRING:
-                url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-            else:
-                url += ""
-        else:
-            # If item_id is not present, add the filters and then the access string
-            query_params = {}
+            url += f"/{item_id}"
 
-            if filter_key and filter_value:
-                query_params[filter_key] = filter_value  
+        # Add query parameters
+        if query_params:
+            query_string = urlencode(query_params)
+            url += f"?{query_string}"
 
-            # Construct the query string from the dictionary (filters only)
-            query_string = "&".join([f"{key}={value}" for key, value in query_params.items()])
+        # Add access string as a query parameter
+        if self.ACCESS_STRING:
+            separator = '&' if '?' in url else '?'
+            url += f"{separator}token={self.ACCESS_STRING.strip('?')}"
 
-            # Append the access string with a slash if it exists
-            if self.ACCESS_STRING:
-                if query_string:
-                    query_string += f"/<token={self.ACCESS_STRING.strip('?')}>"
-                else:
-                    query_string = f"/<token={self.ACCESS_STRING.strip('?')}>"
-            else:
-                # If no access token, leave the query string as is (just the filters)
-                pass
-            
-            # Add the query string to the URL if it's not empty
-            if query_string:
-                url += "/?" + query_string
+        return url
 
+    def api_get_call(
+        self, 
+        resource: str, 
+        item_id: Optional[str] = None, 
+        filter_key: Optional[str] = None, 
+        filter_value: Optional[str] = None
+    ) -> dict:
+        """
+        Perform a GET request with optional filters and an item ID.
+        """
+        query_params = {filter_key: filter_value} if filter_key and filter_value else None
+        url = self._build_url(resource, item_id, query_params)
 
-        # Perform the GET request
+        logger.info(f"Performing GET request to {url}")
         res = r.get(url)
         if res.status_code == 200:
             return res.json()
         else:
-            # logger.error(f"GET request failed with status {res.status_code}: {res.json()}")
-            raise ValueError(res.status_code)
+            logger.error(f"GET request failed with status {res.status_code}: {res.text}")
+            raise ValueError(f"GET request failed with status {res.status_code}: {res.text}")
 
-
-    def api_post_call(self, resource: str, data_obj: dict):
+    def api_post_call(self, resource: str, data_obj: dict) -> dict:
+        """
+        Perform a POST request to create a resource.
+        """
         if 'id' not in data_obj:
-            data_obj.update({'id': UUIDGenerator().create()})
-        
-        url = self.API_ROOT + resource
+            data_obj['id'] = UUIDGenerator().create()
 
-        # Add the access string if it's present
-        if self.ACCESS_STRING:
-            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-        else:
-            pass
+        url = self._build_url(resource)
 
+        logger.info(f"Performing POST request to {url} with data {data_obj}")
         res = r.post(url, json=data_obj)
-
         if res.status_code == 200:
             return res.json()
         else:
-            logger.error(f"POST request failed with status {res.status_code}: {res.json()}")
-            raise ValueError(res.status_code)
+            logger.error(f"POST request failed with status {res.status_code}: {res.text}")
+            raise ValueError(f"POST request failed with status {res.status_code}: {res.text}")
 
+    def api_put_call(self, resource: str, data_obj: dict, item_id: str) -> dict:
+        """
+        Perform a PUT request to update a resource.
+        """
+        url = self._build_url(resource, item_id)
 
-    def api_put_call(self, resource: str, data_obj: dict, item_id: str):
-        url = self.API_ROOT + resource
-
-        if item_id:
-            url += f'/{item_id}'
-        
-        # Append the access string if it's present
-        if self.ACCESS_STRING:
-            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-        else:
-            pass
-        
-        # Perform the PUT request with the constructed URL
+        logger.info(f"Performing PUT request to {url} with data {data_obj}")
         res = r.put(url, json=data_obj)
-
         if res.status_code == 200:
             return res.json()
         else:
-            logger.error(f"PUT request failed with status {res.status_code}: {res.json()}")
-            raise ValueError(res.status_code)
+            logger.error(f"PUT request failed with status {res.status_code}: {res.text}")
+            raise ValueError(f"PUT request failed with status {res.status_code}: {res.text}")
 
-    def api_delete_call(self, resource: str, item_id: str = None):
-        url = self.API_ROOT + resource
-            
-        if item_id:
-            url += f'/{item_id}'
-        # Append the access string if it's present
-        if self.ACCESS_STRING:
-            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-        
-        # Perform the DELETE request with the constructed URL
+    def api_delete_call(self, resource: str, item_id: Optional[str] = None) -> dict:
+        """
+        Perform a DELETE request to delete a resource.
+        """
+        url = self._build_url(resource, item_id)
+
+        logger.info(f"Performing DELETE request to {url}")
         res = r.delete(url)
-            
-        # Check if the request was successful
         if res.status_code == 200:
             return res.json()
         else:
-            logger.error(f"DELETE request failed with status {res.status_code}: {res.json()}")
-            raise ValueError(res.status_code)
+            logger.error(f"DELETE request failed with status {res.status_code}: {res.text}")
+            raise ValueError(f"DELETE request failed with status {res.status_code}: {res.text}")

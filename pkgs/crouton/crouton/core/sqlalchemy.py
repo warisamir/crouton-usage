@@ -1,8 +1,6 @@
-from typing import Any, Callable, List, Type, Generator, Optional, Union, Annotated
+from typing import Any, Callable, List, Type, Generator, Optional, Union, Dict
 
-from fastapi import Depends, HTTPException, Query
-import logging
-
+from fastapi import Depends, HTTPException, Request
 from . import CRUDGenerator, NOT_FOUND, _utils
 from ._types import DEPENDENCIES, PAGINATION, PYDANTIC_SCHEMA as SCHEMA
 
@@ -22,7 +20,14 @@ else:
 CALLABLE = Callable[..., Model]
 CALLABLE_LIST = Callable[..., List[Model]]
 
-logger = logging.getLogger('uvicorn.error')
+
+# Utility function for extracting query parameters
+def query_params(request: Request) -> Dict[str, Any]:
+    """
+    Extract query parameters from the incoming request
+    and return them as a dictionary.
+    """
+    return dict(request.query_params)
 
 
 class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
@@ -66,101 +71,59 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             update_route=update_route,
             delete_one_route=delete_one_route,
             delete_all_route=delete_all_route,
-            **kwargs
+            **kwargs,
         )
 
-    def get_filter_by(self, query: str) -> dict:
-
-        # The Fields in the Model
+    def _parse_query_params(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Parse query parameters into filters for the database query.
+        """
+        filters = {}
         accepted_fields = self.db_model.__table__.columns
 
-        # Prepare dictionary by splitting the query
-        new_query = {}
-        key_value = query.split(':')
-        for values in key_value:
-            key, value = values.split('>')[0], values.split('>')[1]
-
-            # Check if the values passed in query match those in the schema
-            if key not in accepted_fields:
-                raise HTTPException(400, "Invalid Query")
-            
-            # Check if the values are repeated in dictionary
-            if key not in new_query.keys():
-
-                # Check the current value of the key
+        for key, value in query_params.items():
+            if key in accepted_fields:
                 column = getattr(self.db_model, key)
                 try:
-                    # Find the type of the current value
                     column_type = column.type.python_type
-
-                    # Assign correct value to the bool in the query
-                    if column_type == bool:
-                        if value == "True" or value == "true" or value == "TRUE":
-                            value = True
-                        else:
-                            value = False
-
-                    # Assign the correct type to the value
                     parsed_value = column_type(value)
-
-                    # create a key-value dictionary of the query
-                    new_query[key] = parsed_value
-
-
-                # Handle excpetion when error occurs
+                    filters[key] = parsed_value
                 except (ValueError, TypeError) as e:
-                        raise HTTPException(
-                            status_code=422, detail=f"Invalid value for {key}: {e}"
-                       )
+                    raise HTTPException(
+                        status_code=422, detail=f"Invalid value for {key}: {e}"
+                    )
+            else:
+                raise HTTPException(400, f"Invalid filter field: {key}")
 
-        return new_query
+        return filters
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         def route(
             db: Session = Depends(self.db_func),
             pagination: PAGINATION = self.pagination,
-            query: str | None = Query(None),
-        ) -> List[Model] | Model:
-            
+            query_params: Dict[str, Any] = Depends(query_params),
+        ) -> List[Model]:
             skip, limit = pagination.get("skip"), pagination.get("limit")
 
-            if type(query) == str:
+            # Parse and validate query parameters
+            filters = self._parse_query_params(query_params)
 
-                # Pass the given query to get checked
-                new_query = self.get_filter_by(query)
+            # Apply filters to the query
+            query = db.query(self.db_model).filter_by(**filters)
+            db_models: Model = (
+                query.order_by(getattr(self.db_model, self._pk))
+                .filter_by(**query)
+                .limit(limit)
+                .offset(skip)
+                .all()
+            )
 
-                # Find the data that has been filtered
-                
-                db_models: Model = (
-                    db.query(self.db_model)
-                    .filter_by(**new_query)
-                    .limit(limit)
-                    .offset(skip)
-                    .first()
-                )
-
-                logger.info(type(db_models))
-
-                if db_models:
-                    return db_models
-                else:
-                    raise NOT_FOUND from None
-                             
-
-
-            else:
-                db_models: List[Model] = (
-                    db.query(self.db_model)
-                    .order_by(getattr(self.db_model, self._pk))
-                    .limit(limit)
-                    .offset(skip)
-                    .all()
-                )
-
+            if db_models:
                 return db_models
+            else:
+                raise NOT_FOUND from None
 
         return route
-
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
         def route(
@@ -180,8 +143,6 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             model: self.create_schema,  # type: ignore
             db: Session = Depends(self.db_func),
         ) -> Model:
-
-
             try:
                 db_model: Model = self.db_model(**model.dict())
                 db.add(db_model)
@@ -203,16 +164,13 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             try:
                 db_model: Model = self._get_one()(item_id, db)
 
-                # Use exclude_unset=True to only update provided fields
-                update_data = model.dict(exclude={self._pk}, exclude_unset=True)
-                
-                for key, value in update_data.items():
+                for key, value in model.dict(exclude={self._pk}).items():
                     if hasattr(db_model, key):
                         setattr(db_model, key, value)
-    
+
                 db.commit()
                 db.refresh(db_model)
-    
+
                 return db_model
             except IntegrityError as e:
                 db.rollback()
