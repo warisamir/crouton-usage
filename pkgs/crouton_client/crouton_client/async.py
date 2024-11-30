@@ -1,5 +1,7 @@
-import requests as r
+import aiohttp
 import logging
+from urllib.parse import urlencode
+from typing import Optional, Any, Dict
 from .UUID import UUIDGenerator
 
 # Configure logging
@@ -7,110 +9,102 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AsyncCroutonClient:
-    def __init__(self, API_ROOT, ACCESS_STRING = None):
-        self.API_ROOT = API_ROOT
+    def __init__(self, API_ROOT: str, ACCESS_STRING: Optional[str] = None):
+        self.API_ROOT = API_ROOT.rstrip('/')  # Ensure no trailing slash
         self.ACCESS_STRING = ACCESS_STRING
-            
-    async def get(self, resource: str, item_id: str = None, filter_key: str = None, filter_value: str = None):
-        url = self.API_ROOT + resource
 
-        # Add the item_id if provided (for specific resource requests)
+    async def _build_url(self, resource: str, item_id: Optional[str] = None, query_params: Optional[Dict[str, Any]] = None) -> str:
+        """
+        Helper method to construct the URL with resource, item_id, and query parameters.
+        """
+        url = f"{self.API_ROOT}/{resource.strip('/')}"
+        
+        # Add item ID if provided
         if item_id:
-            url += f'/{item_id}'
-            
-            # If item_id is present, just add the access string
-            if self.ACCESS_STRING:
-                url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-            else:
-                pass
-        else:
-            # If item_id is not present, add the filters and then the access string
-            query_params = {}
+            url += f"/{item_id}"
 
-            if filter_key and filter_value:
-                query_params[filter_key] = filter_value  
+        # Add query parameters
+        if query_params:
+            query_string = urlencode(query_params)
+            url += f"?{query_string}"
 
-            # Construct the query string from the dictionary (filters only)
-            query_string = "&".join([f"{key}={value}" for key, value in query_params.items()])
+        # Add access string as a query parameter
+        if self.ACCESS_STRING:
+            separator = '&' if '?' in url else '?'
+            url += f"{separator}token={self.ACCESS_STRING.strip('?')}"
 
-            # Append the access string with a slash if it exists
-            if self.ACCESS_STRING:
-                if query_string:
-                    query_string += f"/<token={self.ACCESS_STRING.strip('?')}>"
+        return url
+
+    async def get(
+        self, 
+        resource: str, 
+        item_id: Optional[str] = None, 
+        filter_key: Optional[str] = None, 
+        filter_value: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Perform an asynchronous GET request with optional filters and an item ID.
+        """
+        query_params = {filter_key: filter_value} if filter_key and filter_value else None
+        url = await self._build_url(resource, item_id, query_params)
+
+        logger.info(f"Performing GET request to {url}")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as res:
+                if res.status == 200:
+                    return await res.json()
                 else:
-                    query_string = f"/<token={self.ACCESS_STRING.strip('?')}>"
-            else:
-                # If no access token, leave the query string as is (just the filters)
-                pass
+                    error_content = await res.text()
+                    logger.error(f"GET request failed with status {res.status}: {error_content}")
+                    raise ValueError(f"GET request failed with status {res.status}: {error_content}")
 
-            # Add the query string to the URL if it's not empty
-            if query_string:
-                url += "?" + query_string
-
-        # Perform the GET request
-        res = r.get(url)
-        if res.status_code == 200:
-            return res.model_dump_json()
-        else:
-            logger.error(f"GET request failed with status {res.status_code}: {res.model_dump_json()}")
-            raise ValueError
-
-    async def post(self, resource: str, data_obj: dict):
+    async def post(self, resource: str, data_obj: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Perform an asynchronous POST request to create a resource.
+        """
         if 'id' not in data_obj:
-            data_obj.update({'id': UUIDGenerator().create()})
-        
-        url = self.API_ROOT + resource
+            data_obj['id'] = UUIDGenerator().create()
 
-        # Add the access string if it's present
-        if self.ACCESS_STRING:
-            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-        else:
-            pass
+        url = await self._build_url(resource)
 
-        res = r.post(url, json=data_obj)
+        logger.info(f"Performing POST request to {url} with data {data_obj}")
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data_obj) as res:
+                if res.status == 200:
+                    return await res.json()
+                else:
+                    error_content = await res.text()
+                    logger.error(f"POST request failed with status {res.status}: {error_content}")
+                    raise ValueError(f"POST request failed with status {res.status}: {error_content}")
 
-        if res.status_code == 200:
-            return res.model_dump_json()
-        else:
-            logger.error(f"POST request failed with status {res.status_code}: {res.model_dump_json()}")
-            raise ValueError
+    async def put(self, resource: str, data_obj: Dict[str, Any], item_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Perform an asynchronous PUT request to update a resource.
+        """
+        url = await self._build_url(resource, item_id)
 
-    async def put(self, resource: str, data_obj: dict, item_id: str = None):
-        url = self.API_ROOT + resource
+        logger.info(f"Performing PUT request to {url} with data {data_obj}")
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, json=data_obj) as res:
+                if res.status == 200:
+                    return await res.json()
+                else:
+                    error_content = await res.text()
+                    logger.error(f"PUT request failed with status {res.status}: {error_content}")
+                    raise ValueError(f"PUT request failed with status {res.status}: {error_content}")
 
-        if item_id:
-            url += f'/{item_id}'
-        
-        # Append the access string if it's present
-        if self.ACCESS_STRING:
-            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-        else:
-            pass
-        
-        # Perform the PUT request with the constructed URL
-        res = r.put(url, json=data_obj)
+    async def delete(self, resource: str, item_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Perform an asynchronous DELETE request to delete a resource.
+        """
+        url = await self._build_url(resource, item_id)
 
-        if res.status_code == 200:
-            return res.model_dump_json()
-        else:
-            logger.error(f"PUT request failed with status {res.status_code}: {res.model_dump_json()}")
-            raise ValueError
-
-    async def delete(self, resource: str, item_id: str = None):
-        url = self.API_ROOT + resource
-            
-        if item_id:
-            url += f'/{item_id}'
-        # Append the access string if it's present
-        if self.ACCESS_STRING:
-            url += f"/<token={self.ACCESS_STRING.strip('?')}>"
-        
-        # Perform the DELETE request with the constructed URL
-        res = r.delete(url)
-            
-        # Check if the request was successful
-        if res.status_code == 200:
-            return res.model_dump_json()
-        else:
-            logger.error(f"DELETE request failed with status {res.status_code}: {res.model_dump_json()}")
-            raise ValueError
+        logger.info(f"Performing DELETE request to {url}")
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(url) as res:
+                if res.status == 200:
+                    return await res.json()
+                else:
+                    error_content = await res.text()
+                    logger.error(f"DELETE request failed with status {res.status}: {error_content}")
+                    raise ValueError(f"DELETE request failed with status {res.status}: {error_content}")
