@@ -109,10 +109,10 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             filters = self._parse_query_params(query_params)
 
             # Apply filters to the query
-            query = db.query(self.db_model).filter_by(**filters)
             db_models: Model = (
-                query.order_by(getattr(self.db_model, self._pk))
-                .filter_by(**query)
+                db.query(self.db_model)
+                .filter_by(**filters)
+                .order_by(getattr(self.db_model, self._pk))
                 .limit(limit)
                 .offset(skip)
                 .all()
