@@ -77,11 +77,17 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
     def _parse_query_params(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Parse query parameters into filters for the database query.
+        Exclude pagination-related parameters like 'skip' and 'limit'.
         """
         filters = {}
         accepted_fields = self.db_model.__table__.columns
-
+    
+        # Exclude pagination-related parameters
+        excluded_params = {"skip", "limit"}
+    
         for key, value in query_params.items():
+            if key in excluded_params:
+                continue  # Skip pagination parameters
             if key in accepted_fields:
                 column = getattr(self.db_model, key)
                 try:
@@ -94,8 +100,9 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
                     )
             else:
                 raise HTTPException(400, f"Invalid filter field: {key}")
-
+    
         return filters
+
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         def route(
@@ -103,11 +110,12 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
             pagination: PAGINATION = self.pagination,
             query_params: Dict[str, Any] = Depends(query_params),
         ) -> List[Model]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
-
+            skip = pagination.get("skip", 0)
+            limit = pagination.get("limit", 100)  # Default values if not provided
+    
             # Parse and validate query parameters
             filters = self._parse_query_params(query_params)
-
+    
             # Apply filters to the query
             db_models: Model = (
                 db.query(self.db_model)
@@ -117,13 +125,14 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
                 .offset(skip)
                 .all()
             )
-
+    
             if db_models:
                 return db_models
             else:
                 raise NOT_FOUND from None
-
+    
         return route
+
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
         def route(
