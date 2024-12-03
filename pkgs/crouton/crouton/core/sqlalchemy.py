@@ -121,8 +121,8 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
                 db.query(self.db_model)
                 .filter_by(**filters)
                 .order_by(getattr(self.db_model, self._pk))
-                .offset(skip)
                 .limit(limit)
+                .offset(skip)
                 .all()
             )
     
