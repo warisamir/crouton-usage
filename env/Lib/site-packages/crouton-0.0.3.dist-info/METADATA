@@ -1,0 +1,23 @@
+Metadata-Version: 2.1
+Name: crouton
+Version: 0.0.3
+Summary: A repository to enable API CRUD Routing
+Home-page: https://github.com/swarmauri/crouton
+License: Apache-2.0
+Author: Jacob Stewart
+Author-email: jacob@swarmauri.com
+Requires-Python: >=3.10,<4.0
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Dist: SQLAlchemy-Utils
+Requires-Dist: databases
+Requires-Dist: fastapi
+Project-URL: Repository, https://github.com/swarmauri/crouton
+Description-Content-Type: text/markdown
+
+# Swarmauri API CRUD Router
+

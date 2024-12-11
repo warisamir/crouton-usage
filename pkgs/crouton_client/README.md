@@ -1,1 +1,0 @@
-# Swarmauri API CRUD Router
